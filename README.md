@@ -72,7 +72,7 @@ pip install -r requirements.txt
 jupyter lab
 ```
 
-Open `House_price_v1.ipynb` and run all cells. `training.csv` must be in the same folder.
+Open `House_price_prediction.ipynb` and run all cells. `training.csv` must be in the same folder.
 
 ```
 House_price_v1.ipynb   full analysis notebook

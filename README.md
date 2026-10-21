@@ -1,83 +1,91 @@
-# House price prediction with linear regression
+# House price prediction with linear regression (v1 & v2)
 
-Predicts the sale price of houses in the Seattle area from eight numeric features. Linear regression is implemented from scratch with NumPy (cost function, gradient, gradient descent) and checked against scikit-learn.
+Predicts the sale price of houses in the Seattle area using multiple linear regression. Implemented completely from scratch with NumPy (cost function, gradients, gradient descent) and rigorously verified against scikit-learn.
 
-## Results
+- **v1:** Baseline 8-feature scratch linear regression (loop-based).
+- **v2:** Full pipeline upgrade with outlier trimming, feature engineering, city one-hot encoding (55 features), 1000× faster vectorized gradient descent, alpha eigenvalue analysis, and error analysis.
 
-Evaluated on a test set of 910 houses. Price is modelled as log(price).
+---
 
-| Model | RMSE (log price) | R² |
-|---|---|---|
-| Baseline: predict the training mean | 0.5522 | n/a |
-| Linear regression from scratch | 0.3940 | 0.491 |
-| Linear regression with scikit-learn | 0.3940 | 0.491 |
+## Results & Ablation Study
 
-- RMSE is 28.66% lower than the baseline. In price terms, the typical error is about a factor of 1.5 (e^0.394 ≈ 1.48).
-- Training RMSE is 0.383, close to the test RMSE of 0.394, so there is little overfitting.
-- Weights, bias and predictions from the scratch model match scikit-learn (`np.allclose` returns `True`).
-- R² is computed as 1 − MSE(model) / MSE(baseline), with the training mean as the baseline. scikit-learn's `r2_score` uses the test mean instead and gives 0.4909.
+Evaluated on the trimmed dataset (4,526 houses, 80/20 train/test split: 3,620 train / 906 test). The target is modelled as `log(price)`. Baseline test RMSE is **0.5158** (predicting `y_train.mean() = 13.0555`).
+
+| Model | Features | Test RMSE | R² | Key Takeaway |
+|---|---|---|---|---|
+| **Baseline** (predict train mean) | 0 | 0.5158 | 0.000 | Safe benchmark |
+| **Model A** (v1 original 8 features) | 8 | 0.3659 | 0.4965 | Trimming outliers alone drops RMSE from 0.3940 → 0.3659 |
+| **Model B** (+ sqft_basement, renovated, age) | 11 | 0.3547 | 0.5270 | Engineered features add genuine signal (+3.1% R²) |
+| **Model C / v2 Scratch** (+ 44 city one-hot) | 55 | **0.2721** | **0.7217** | Location provides massive predictive power (+19.5% R²) |
+| **scikit-learn LinearRegression (Model C)** | 55 | 0.2721 | 0.7216 | Scratch weights, bias & predictions match (`np.allclose = True`) |
+
+> ⚠️ **Important ML Note on Comparisons:**  
+> Never directly compare the raw v1 test RMSE (0.3940 on 910 houses) with v2 Model C (0.2721 on 906 houses) because trimming outliers changes the test set. The fair comparison is **Model A (0.3659)** vs **Model C (0.2721)** on the exact same dataset, showing a **25.6% reduction in RMSE** purely from feature engineering!
+
+---
+
+## What Changed in v2?
+
+### 1. Exploratory Data Analysis (EDA)
+- **Log transformation:** Raw prices are heavily right-skewed (skewness 5.3); `log(price)` compresses high values into a near-symmetric bell curve (skewness 0.19).
+- **Scatter analysis:** `sqft_living vs price` revealed severe price-per-square-foot outliers.
+- **Location signal:** City-wise median prices revealed a 3× difference between cities (e.g. Medina vs Auburn), strongly motivating one-hot encoding.
+
+### 2. Outlier Trimming
+- Created `price_per_sqft = price / sqft_living`.
+- Filtered out listings above the 99.5th percentile (~$675.13/sqft), dropping 23 extreme listings (4,549 → 4,526 rows).
+- This keeps extreme edge cases from dominating the MSE cost function.
+
+### 3. Feature Engineering & Redundancy Removal
+- Verified exact collinearity: `sqft_living == sqft_above + sqft_basement` across all rows, allowing `sqft_above` to be dropped without losing information.
+- Created `renovated = (yr_renovated > 0).astype(int)` to provide a clean binary signal.
+- Created `age = 2014 - yr_built` to capture house age directly.
+- Dropped uninformative columns: `date`, `street`, `statezip`, `country`, `yr_built`, `yr_renovated`, `sqft_above`, and `price_per_sqft`.
+- One-hot encoded `city` (44 categories), expanding feature space from 11 to **55 features**.
+
+### 4. Vectorization (1000× Speedup)
+- Replaced nested Python loops with pure NumPy matrix operations:
+  - Prediction: $\vec{f} = Xw + b$
+  - Cost: $J = \frac{1}{2m} \sum (f - y)^2$
+  - Gradient: $dj\_dw = \frac{1}{m} X^T \cdot (f - y)$ and $dj\_db = \text{mean}(f - y)$
+- **Speed benchmark:** Loop version took ~0.06 s per gradient step (~2+ minutes for 2,000 iterations). Vectorized version runs in ~0.07 ms per step (**~1000× faster**, finishing 2,000 iterations in under 1 second).
+
+### 5. Learning Rate ($\alpha$) Limit Shift
+Gradient descent converges when $\alpha < 2 / \lambda_{max}$, where $\lambda_{max}$ is the largest eigenvalue of the normalized feature covariance matrix:
+- **v1 (8 features):** Limit was $\approx 0.759$ ($\alpha = 0.7$ converged, $\alpha = 0.8$ diverged).
+- **v2 (55 features):** Feature geometry changed; limit lowered to $\approx \mathbf{0.602}$.
+  - Experiment with $\alpha = 0.5$ ($< 0.602$): cost rapidly drops to 0.0363 in 15 iterations.
+  - Experiment with $\alpha = 0.7$ ($> 0.602$): cost explodes from 7.8 → 9.25 Billion in 45 iterations (divergence verified).
+
+### 6. Error Analysis
+Inspected the top 10 worst test predictions:
+- Largest error was **2.99 log units** on an $84,350 home predicted at **$1,678,479** (~20× over-prediction).
+- Top errors were predominantly **over-predictions** on cheap houses. A linear model is purely additive ($w_1 \cdot \text{sqft} + w_2 \cdot \text{city} + \dots$): when a house has high sqft and a good lot in a decent city, linear regression forces a high valuation, unable to capture non-linear penalties (e.g. distressed condition, unusual title/foreclosure sales).
+
+---
 
 ## Dataset
 
-- **Source:** Kaggle, [House price prediction](https://www.kaggle.com/datasets/shree1992/housedata) by shree1992. 4,600 rows and 18 columns of house sales in the Seattle area, Washington, in 2014.
-- **License:** not stated on Kaggle ("Unknown"), so the data file is not included in this repository. Download it and save it as `training.csv` in the project folder.
-- **Cleaning:** removed 49 rows with price 0 and 2 rows with 0 bedrooms or 0 bathrooms, leaving 4,549 rows. Zeros in `waterfront`, `view`, `sqft_basement` and `yr_renovated` mean "none" or "never", so they are kept.
-- **Features (8):** `bedrooms`, `bathrooms`, `sqft_living`, `sqft_lot`, `floors`, `waterfront`, `view`, `condition`.
-- **Target:** log(price). Raw prices are heavily skewed (skewness 25.0); after the log it is 0.33.
+- **Source:** Kaggle, [House price prediction](https://www.kaggle.com/datasets/shree1992/housedata) by shree1992. 4,600 rows and 18 columns of house sales in Seattle area, WA (2014).
+- **License:** Unknown on Kaggle; data is not committed to this repo. Download and save as `training.csv`.
+- **Cleaning:** 49 rows with price 0 and 2 rows with 0 bedrooms/bathrooms removed (4,549 rows). In v2, 23 price/sqft outliers were also removed (4,526 rows).
 
-## Approach
+---
 
-1. Clean the data and split it 80/20 (`random_state=42`): 3,639 training rows and 910 test rows.
-2. Standardize the features with z-scores. Mean and standard deviation come from the training set only and are applied to both sets.
-3. Implement the cost J(w, b) = 1/(2m) · Σ (w·x + b − y)² and its gradient with loops in NumPy.
-4. Run gradient descent with α = 0.05 for 2,000 iterations. The cost falls from 85.47 to 0.0734 and is flat after about 200 iterations.
-5. Compare against a baseline that predicts the training mean, then against scikit-learn's `LinearRegression`.
-
-## Learning rate experiment
-
-Gradient descent for 100 iterations with six learning rates:
-
-| α | Behaviour |
-|---|---|
-| 0.01 | Converges slowly: cost is still about 11.5 after 100 iterations |
-| 0.05, 0.1 | Converge: cost is about 0.077 and 0.0735 after 100 iterations |
-| 0.5 | Fastest: cost is about 0.074 within 10 iterations |
-| 0.7 | Converges, with slight oscillation early on |
-| 0.8 | Diverges: cost grows from 0.5 to about 5 × 10⁷ |
-
-Gradient descent converges when α < 2/λmax, where λmax is the largest eigenvalue of XᵀX/m. For this data λmax = 2.636, so the limit is about 0.759. That matches the experiment: 0.7 converges and 0.8 does not.
-
-## Example prediction
-
-The model outputs log(price), so `exp` converts it back to dollars. A house with 3 bedrooms, 2 bathrooms, 1,800 sqft of living space, a 5,000 sqft lot, 1 floor, no waterfront, view 0 and condition 3 is predicted at about **$377,215**.
-
-## Notes
-
-- The cost is J = MSE / 2, so RMSE = √(2J).
-- Scaling statistics must come from the training set only. Test-set statistics would leak information and put test data on a different scale from the one the model learned.
-- A log target keeps a few very expensive houses from dominating the squared error.
-- `sqft_living` has the largest weight: 0.322 per standard deviation, about +38% in price with the other features fixed. `bedrooms` has a small negative weight (−0.042), likely because it is correlated with `sqft_living`.
-
-## Limitations and next steps
-
-- Only numeric features are used; location (city, zip code) is not.
-- Extreme outliers remain in the data, for example a $26.59M listing for a 1,180 sqft house.
-- A single random split is used, with no cross-validation.
-- Planned for v2: add city (one-hot) and renovation/age features, handle outliers, vectorize the gradient computation, and compare feature sets in an ablation.
-
-## Run it
+## Project Structure
 
 ```
-pip install -r requirements.txt
+House_price_prediction.ipynb   v1 from-scratch linear regression (8 features, loops)
+v2_house.ipynb                 v2 pipeline (55 features, vectorized, ablation, error analysis)
+training.csv                   raw dataset (download from Kaggle)
+README.md                      full project documentation
+```
+
+## How to Run
+
+```bash
 jupyter lab
 ```
+Run `House_price_prediction.ipynb` for v1, or `v2_house.ipynb` for v2.
 
-Open `House_price_v1.ipynb` and run all cells. `training.csv` must be in the same folder.
-
-```
-House_price_v1.ipynb   full analysis notebook
-requirements.txt
-README.md
-training.csv           not included, download from Kaggle
-```
 

@@ -1,91 +1,104 @@
-# House price prediction with linear regression (v1 & v2)
+# 🏡 Seattle House Price Prediction & Classification (v1, v2 & v3)
 
-Predicts the sale price of houses in the Seattle area using multiple linear regression. Implemented completely from scratch with NumPy (cost function, gradients, gradient descent) and rigorously verified against scikit-learn.
-
-- **v1:** Baseline 8-feature scratch linear regression (loop-based).
-- **v2:** Full pipeline upgrade with outlier trimming, feature engineering, city one-hot encoding (55 features), 1000× faster vectorized gradient descent, alpha eigenvalue analysis, and error analysis.
+An end-to-end Machine Learning journey implementing multiple regression and classification algorithms completely from scratch using pure NumPy (cost functions, analytical gradients, vectorized gradient descent, eigenvalue stability analysis, and L2 regularization) and thoroughly benchmarked against scikit-learn.
 
 ---
 
-## Results & Ablation Study
+## 📌 Executive Summary & Architecture
 
-Evaluated on the trimmed dataset (4,526 houses, 80/20 train/test split: 3,620 train / 906 test). The target is modelled as `log(price)`. Baseline test RMSE is **0.5158** (predicting `y_train.mean() = 13.0555`).
-
-| Model | Features | Test RMSE | R² | Key Takeaway |
-|---|---|---|---|---|
-| **Baseline** (predict train mean) | 0 | 0.5158 | 0.000 | Safe benchmark |
-| **Model A** (v1 original 8 features) | 8 | 0.3659 | 0.4965 | Trimming outliers alone drops RMSE from 0.3940 → 0.3659 |
-| **Model B** (+ sqft_basement, renovated, age) | 11 | 0.3547 | 0.5270 | Engineered features add genuine signal (+3.1% R²) |
-| **Model C / v2 Scratch** (+ 44 city one-hot) | 55 | **0.2721** | **0.7217** | Location provides massive predictive power (+19.5% R²) |
-| **scikit-learn LinearRegression (Model C)** | 55 | 0.2721 | 0.7216 | Scratch weights, bias & predictions match (`np.allclose = True`) |
-
-> ⚠️ **Important ML Note on Comparisons:**  
-> Never directly compare the raw v1 test RMSE (0.3940 on 910 houses) with v2 Model C (0.2721 on 906 houses) because trimming outliers changes the test set. The fair comparison is **Model A (0.3659)** vs **Model C (0.2721)** on the exact same dataset, showing a **25.6% reduction in RMSE** purely from feature engineering!
+| Stage | Paradigm | Core Objective | Key Features | Model Metric | vs. Baseline |
+|---|---|---|---|---|---|
+| **v1 Baseline** | Regression | Predict dollar price via `log(price)` | 8 core numeric features, loop-based GD | **Test RMSE: 0.3940**, $R^2$: 0.491 | Baseline RMSE: 0.5522 (+28.7% better) |
+| **v2 Advanced** | Regression | Feature engineering & 1000× speedup | 55 features (+age, +renovated, +44 cities) | **Test RMSE: 0.2721**, $R^2$: **0.7217** | Baseline RMSE: 0.5158 (+47.2% better) |
+| **v3 Logistic** | Binary Classification | Classify: Expensive ($1$) vs. Affordable ($0$) | 55 features, Sigmoid, Log Loss, $L_2$ Regularization | **Test Accuracy: 85.32%** | Dumb Baseline: 49.34% (**+36% gain**) |
 
 ---
 
-## What Changed in v2?
+## 📊 Stage 1: Linear Regression Baseline (v1)
 
-### 1. Exploratory Data Analysis (EDA)
-- **Log transformation:** Raw prices are heavily right-skewed (skewness 5.3); `log(price)` compresses high values into a near-symmetric bell curve (skewness 0.19).
-- **Scatter analysis:** `sqft_living vs price` revealed severe price-per-square-foot outliers.
-- **Location signal:** City-wise median prices revealed a 3× difference between cities (e.g. Medina vs Auburn), strongly motivating one-hot encoding.
-
-### 2. Outlier Trimming
-- Created `price_per_sqft = price / sqft_living`.
-- Filtered out listings above the 99.5th percentile (~$675.13/sqft), dropping 23 extreme listings (4,549 → 4,526 rows).
-- This keeps extreme edge cases from dominating the MSE cost function.
-
-### 3. Feature Engineering & Redundancy Removal
-- Verified exact collinearity: `sqft_living == sqft_above + sqft_basement` across all rows, allowing `sqft_above` to be dropped without losing information.
-- Created `renovated = (yr_renovated > 0).astype(int)` to provide a clean binary signal.
-- Created `age = 2014 - yr_built` to capture house age directly.
-- Dropped uninformative columns: `date`, `street`, `statezip`, `country`, `yr_built`, `yr_renovated`, `sqft_above`, and `price_per_sqft`.
-- One-hot encoded `city` (44 categories), expanding feature space from 11 to **55 features**.
-
-### 4. Vectorization (1000× Speedup)
-- Replaced nested Python loops with pure NumPy matrix operations:
-  - Prediction: $\vec{f} = Xw + b$
-  - Cost: $J = \frac{1}{2m} \sum (f - y)^2$
-  - Gradient: $dj\_dw = \frac{1}{m} X^T \cdot (f - y)$ and $dj\_db = \text{mean}(f - y)$
-- **Speed benchmark:** Loop version took ~0.06 s per gradient step (~2+ minutes for 2,000 iterations). Vectorized version runs in ~0.07 ms per step (**~1000× faster**, finishing 2,000 iterations in under 1 second).
-
-### 5. Learning Rate ($\alpha$) Limit Shift
-Gradient descent converges when $\alpha < 2 / \lambda_{max}$, where $\lambda_{max}$ is the largest eigenvalue of the normalized feature covariance matrix:
-- **v1 (8 features):** Limit was $\approx 0.759$ ($\alpha = 0.7$ converged, $\alpha = 0.8$ diverged).
-- **v2 (55 features):** Feature geometry changed; limit lowered to $\approx \mathbf{0.602}$.
-  - Experiment with $\alpha = 0.5$ ($< 0.602$): cost rapidly drops to 0.0363 in 15 iterations.
-  - Experiment with $\alpha = 0.7$ ($> 0.602$): cost explodes from 7.8 → 9.25 Billion in 45 iterations (divergence verified).
-
-### 6. Error Analysis
-Inspected the top 10 worst test predictions:
-- Largest error was **2.99 log units** on an $84,350 home predicted at **$1,678,479** (~20× over-prediction).
-- Top errors were predominantly **over-predictions** on cheap houses. A linear model is purely additive ($w_1 \cdot \text{sqft} + w_2 \cdot \text{city} + \dots$): when a house has high sqft and a good lot in a decent city, linear regression forces a high valuation, unable to capture non-linear penalties (e.g. distressed condition, unusual title/foreclosure sales).
+- **Notebook:** `House_price_prediction_by_linear_reg(v1).ipynb`
+- **Data:** 4,549 cleaned listings after dropping 49 zero-price listings and 2 zero-bedroom/bathroom entries.
+- **Features (8):** `bedrooms`, `bathrooms`, `sqft_living`, `sqft_lot`, `floors`, `waterfront`, `view`, `condition`.
+- **Target:** $\log(\text{price})$ to stabilize the right-skewed pricing distribution.
+- **Implementation:** Loop-based Gradient Descent ($\alpha = 0.05, 2000$ iterations).
+- **Results:**
+  - Cost reduced from $85.47 \to 0.0734$.
+  - Test RMSE: **0.3940**, $R^2$: **0.4909**.
+  - Verified exact match with Scikit-Learn `LinearRegression` (`np.allclose = True`).
+- **Learning Rate Limit:** Theoretical convergence limit $\alpha < 2/\lambda_{\max} \approx 0.759$ experimentally verified ($\alpha = 0.7$ converged, $\alpha = 0.8$ diverged).
 
 ---
 
-## Dataset
+## 🚀 Stage 2: Advanced Pipeline & Ablation Study (v2)
 
-- **Source:** Kaggle, [House price prediction](https://www.kaggle.com/datasets/shree1992/housedata) by shree1992. 4,600 rows and 18 columns of house sales in Seattle area, WA (2014).
-- **License:** Unknown on Kaggle; data is not committed to this repo. Download and save as `training.csv`.
-- **Cleaning:** 49 rows with price 0 and 2 rows with 0 bedrooms/bathrooms removed (4,549 rows). In v2, 23 price/sqft outliers were also removed (4,526 rows).
+- **Notebook:** `Advanced_linear_reg(v2).ipynb`
+- **Outlier Trimming:** Filtered listings above the 99.5th percentile of `price_per_sqft` ($\approx \$675.13/\text{sqft}$), trimming 23 extreme listings ($4,549 \to 4,526$ rows).
+- **Feature Engineering:**
+  - Verified exact collinearity: $\text{sqft\_living} = \text{sqft\_above} + \text{sqft\_basement}$, dropping $\text{sqft\_above}$.
+  - Derived binary $\text{renovated} = (\text{yr\_renovated} > 0)$ and $\text{age} = 2014 - \text{yr\_built}$.
+  - One-hot encoded 44 cities, expanding feature space to **55 features**.
+- **Vectorized Gradient Descent:** Replaced Python loops with NumPy BLAS matrix operations ($X^T \cdot \text{err}$), achieving a **1000× speedup** (~0.07 ms per step vs. ~60 ms loop-based).
+- **Ablation Study Results:**
+  | Model | Feature Set | Test RMSE | $R^2$ Score | Key Finding |
+  |---|---|---|---|---|
+  | **Model A** | 8 original features | 0.3659 | 0.4965 | Trimming outliers alone improved RMSE from 0.3940 $\to$ 0.3659 |
+  | **Model B** | 11 features (+basement, renovated, age) | 0.3547 | 0.5270 | Engineered features added clean non-linear signals (+3.1% $R^2$) |
+  | **Model C** | 55 features (+44 city one-hot columns) | **0.2721** | **0.7217** | Geographical location provided massive predictive power (+19.5% $R^2$) |
+- **Eigenvalue Limit Shift:** With 55 features, the theoretical stability boundary shifted to $2/\lambda_{\max} \approx 0.602$. Confirmed: $\alpha = 0.5$ converged rapidly, while $\alpha = 0.7$ diverged to $9.25 \times 10^9$.
+- **Error Analysis:** Diagnosed top-10 worst test predictions; identified that linear regression's additive nature over-predicted large-lot, low-cost listings (e.g., an $\$84\text{k}$ house predicted at $\$1.67\text{M}$).
 
 ---
 
-## Project Structure
+## 🎯 Stage 3: Logistic Regression & L2 Regularization (v3)
+
+- **Notebook:** `House_price_pred_by_logis_reg.ipynb`
+- **Problem Formulation:** Partitioned houses by the median price ($\$464,000$) to create a perfectly balanced binary target:
+  $$y = \begin{cases} 1 & \text{if price} \ge \text{median (Expensive, 50.06\%)} \\ 0 & \text{if price} < \text{median (Affordable, 49.94\%)} \end{cases}$$
+- **From-Scratch Math:**
+  - Sigmoid Activation: $g(z) = \frac{1}{1 + e^{-z}}$
+  - Binary Cross-Entropy (Log Loss) with numerical stability clipping ($10^{-15} \le f \le 1 - 10^{-15}$):
+    $$J(w, b) = -\frac{1}{m} \sum \Big[ y \log(f) + (1 - y) \log(1 - f) \Big] + \frac{\lambda}{2m} \sum w_j^2$$
+  - Gradient: $\frac{\partial J}{\partial w} = \frac{1}{m} X^T(f - y) + \frac{\lambda}{m}w$
+- **Classification Performance:**
+  - **Dumb Majority Baseline Accuracy:** 49.34%
+  - **Scratch Logistic Regression Accuracy:** **85.32%** (beating Scikit-Learn's default $85.10\%$)
+  - **Confusion Matrix:**
+    $$\begin{bmatrix} 392 & 67 \\ 66 & 381 \end{bmatrix} \implies \text{Affordable Recall: } 85.4\%, \text{ Expensive Recall: } 85.2\%$$
+- **L2 Regularization Experiments:**
+  - $\lambda = 0$: Test Acc = $85.32\%$, $\|w\|_2 = 6.45$
+  - $\lambda = 1$: Test Acc = $85.32\%$, $\|w\|_2 = 1.87$ (controlled shrinkage)
+  - $\lambda = 100$: Test Acc = $83.77\%$, $\|w\|_2 = 1.25$ (**Underfitting verified**)
+  - Tested small-sample regime ($m=50 < n=55$) to demonstrate how regularization restricts weight explosion in data-scarce conditions.
+
+---
+
+## 🛠️ Project Structure
 
 ```
-House_price_prediction.ipynb   v1 from-scratch linear regression (8 features, loops)
-v2_house.ipynb                 v2 pipeline (55 features, vectorized, ablation, error analysis)
-training.csv                   raw dataset (download from Kaggle)
-README.md                      full project documentation
+House_price_prediction/
+├── House_price_prediction_by_linear_reg(v1).ipynb   # v1 Baseline linear regression (8 features, loops)
+├── Advanced_linear_reg(v2).ipynb                    # v2 Advanced linear regression (55 features, vectorized)
+├── House_price_pred_by_logis_reg.ipynb              # v3 Logistic regression classification (Sigmoid, L2)
+├── app.py                                           # Streamlit interactive deployment application
+├── training.csv                                     # Kaggle dataset (git-ignored for license compliance)
+├── requirements.txt                                 # Python dependencies
+└── README.md                                        # Complete engineering documentation
 ```
 
-## How to Run
+---
 
+## 💻 How to Run
+
+### 1. Run the Jupyter Notebooks
 ```bash
 jupyter lab
 ```
-Run `House_price_prediction.ipynb` for v1, or `v2_house.ipynb` for v2.
+Open and run `House_price_prediction_by_linear_reg(v1).ipynb`, `Advanced_linear_reg(v2).ipynb`, or `House_price_pred_by_logis_reg.ipynb`.
+
+### 2. Launch the Streamlit Interactive Web App
+```bash
+streamlit run app.py
+```
+
 
 

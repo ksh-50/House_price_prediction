@@ -156,9 +156,9 @@ with col1:
     st.caption("Multiple Linear Regression (v2 Model, R² = 0.722, 55 features)")
     diff_from_median = pred_dollar_price - median_price
     if diff_from_median >= 0:
-        st.markdown(f"📈 **+${diff_from_median:,.0f}** above Seattle Median (${median_price:,.0f})")
+        st.markdown(f"📈 **+${diff_from_median:,.0f}** above Seattle Median (`${median_price:,.0f}`)")
     else:
-        st.markdown(f"📉 **-${abs(diff_from_median):,.0f}** below Seattle Median (${median_price:,.0f})")
+        st.markdown(f"📉 **-${abs(diff_from_median):,.0f}** below Seattle Median (`${median_price:,.0f}`)")
 
 with col2:
     st.markdown("### 🏷️ Category Status")

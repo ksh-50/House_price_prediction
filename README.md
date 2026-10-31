@@ -14,6 +14,20 @@ An end-to-end Machine Learning journey implementing multiple regression and clas
 
 ---
 
+## 🖥️ Interactive Web Application (Live Demo)
+
+An interactive Streamlit web dashboard (`app.py`) allowing users to adjust property specifications in real-time across 55 features and simultaneously receive:
+1. **Continuous Price Valuation ($):** Predicted by the Vectorized Linear Regression model ($R^2 = 0.7217$).
+2. **Binary Affordability Classification:** Predicted by the Logistic Regression classifier ($85.32\%$ test accuracy) with probability confidence scoring.
+
+### 1. Affordable Class Prediction (`$397,028` Valuation, $y=0$):
+![Affordable Property Prediction](assets/demo_affordable.png)
+
+### 2. Expensive Class Prediction (`$669,145` Valuation, $y=1$):
+![Expensive Property Prediction](assets/demo_expensive.png)
+
+---
+
 ## 📊 Stage 1: Linear Regression Baseline (v1)
 
 - **Notebook:** `House_price_prediction_by_linear_reg(v1).ipynb`
@@ -83,6 +97,9 @@ An end-to-end Machine Learning journey implementing multiple regression and clas
 
 ```
 House_price_prediction/
+├── assets/
+│   ├── demo_affordable.png                          # Streamlit UI: Affordable class prediction
+│   └── demo_expensive.png                           # Streamlit UI: Expensive class prediction
 ├── House_price_prediction_by_linear_reg(v1).ipynb   # v1 Baseline linear regression (8 features, loops)
 ├── Advanced_linear_reg(v2).ipynb                    # v2 Advanced linear regression (55 features, vectorized)
 ├── House_price_pred_by_logis_reg.ipynb              # v3 Logistic regression classification (Sigmoid, L2)

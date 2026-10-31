@@ -65,8 +65,12 @@ An end-to-end Machine Learning journey implementing multiple regression and clas
 - **Classification Performance:**
   - **Dumb Majority Baseline Accuracy:** 49.34%
   - **Scratch Logistic Regression Accuracy:** **85.32%** (beating Scikit-Learn default 85.10%)
-  - **Confusion Matrix:**
-    $$\begin{bmatrix} 392 & 67 \\ 66 & 381 \end{bmatrix} \implies \text{Affordable Recall: } 85.4\%, \text{ Expensive Recall: } 85.2\%$$
+  - **Confusion Matrix (906 Test Samples):**
+
+    | | Predicted Affordable ($y=0$) | Predicted Expensive ($y=1$) | Class Recall |
+    |---|:---:|:---:|:---:|
+    | **Actual Affordable** | **392** (True Negative) | 67 (False Positive) | **85.4%** |
+    | **Actual Expensive** | 66 (False Negative) | **381** (True Positive) | **85.2%** |
 - **L2 Regularization Experiments:**
   - $\lambda = 0$: Test Acc = 85.32%, $\|w\|_2 = 6.45$
   - $\lambda = 1$: Test Acc = 85.32%, $\|w\|_2 = 1.87$ (controlled shrinkage)

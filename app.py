@@ -73,7 +73,7 @@ except Exception as e:
 
 # Header
 st.markdown('<div class="main-header">🏡 Seattle House Price Prediction & Classification</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">Predict exact market price (Linear Regression v2) & classify affordability (Logistic Regression v3) using machine learning models implemented from scratch with NumPy.</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-header">Predict exact market price & classify affordability using machine learning models.</div>', unsafe_allow_html=True)
 
 # Layout: Sidebar for Property Controls, Main area for Output
 with st.sidebar:
@@ -96,11 +96,21 @@ with st.sidebar:
     
     st.subheader("🔨 Age & Renovation")
     yr_built = st.slider("Year Built", min_value=1900, max_value=2014, value=1975)
-    has_renovated = st.checkbox("Has been renovated?", value=False)
-    yr_renovated = yr_built if not has_renovated else st.slider("Year Renovated", min_value=yr_built, max_value=2014, value=max(yr_built, 2000))
     
+    if yr_built >= 2014:
+        has_renovated = False
+        st.info("🏗️ Brand new construction (2014) — renovation not applicable.")
+    else:
+        has_renovated = st.checkbox("Has been renovated?")
+
+    if has_renovated:
+        yr_renovated = st.slider("Year Renovated", min_value=yr_built + 1, max_value=2014, value=min(2005, 2014))
+    else:
+        yr_renovated = 0
+        
     st.subheader("🌊 Premium Features")
     col_p1, col_p2 = st.columns(2)
+
     with col_p1:
         waterfront = 1 if st.checkbox("Waterfront property", value=False) else 0
     with col_p2:
@@ -153,12 +163,12 @@ col1, col2, col3 = st.columns([1.3, 1.3, 1.4])
 with col1:
     st.markdown("### 💰 Estimated Valuation")
     st.markdown(f"<h1 style='color: #2563EB; font-size: 2.8rem;'>${pred_dollar_price:,.0f}</h1>", unsafe_allow_html=True)
-    st.caption("Multiple Linear Regression (v2 Model, R² = 0.722, 55 features)")
+    st.caption("Multiple Linear Regression (v2 Model)")
     diff_from_median = pred_dollar_price - median_price
     if diff_from_median >= 0:
-        st.markdown(f"📈 **+${diff_from_median:,.0f}** above Seattle Median (`${median_price:,.0f}`)")
+        st.markdown(rf"📈 **+\${diff_from_median:,.0f}** above Seattle Median (\${median_price:,.0f})")
     else:
-        st.markdown(f"📉 **-${abs(diff_from_median):,.0f}** below Seattle Median (`${median_price:,.0f}`)")
+        st.markdown(rf"📉 **-\${abs(diff_from_median):,.0f}** below Seattle Median (\${median_price:,.0f})")
 
 with col2:
     st.markdown("### 🏷️ Category Status")
@@ -168,14 +178,14 @@ with col2:
     else:
         st.markdown("<div class='status-affordable'>✅ AFFORDABLE CLASS (y = 0)</div>", unsafe_allow_html=True)
         st.markdown(f"**Confidence:** `{(1 - prob_expensive) * 100:.1f}%` probability")
-    st.caption("Logistic Regression (v3 Model, 85.32% Test Accuracy)")
+    st.caption("Logistic Regression (v3 Model)")
 
 with col3:
     st.markdown("### 📊 Market Context")
     st.progress(float(min(max(prob_expensive, 0.0), 1.0)))
     st.markdown(f"""
     - **Seattle Median:** `${median_price:,.0f}`
-    - **Price / Sqft:** `${pred_dollar_price / sqft_living:,.1f} / sqft`
+    - **Model's predicted(Price / Sqft):** `${pred_dollar_price / sqft_living:,.1f} / sqft`
     - **Property Age:** `{age} years old`
     """)
 
@@ -188,17 +198,33 @@ tab1, tab2, tab3 = st.tabs(["Regression Analysis (v1 & v2)", "Classification (v3
 
 with tab1:
     st.markdown("""
-    - **Pipeline Evolution:** v1 used 8 raw numeric features with loop-based gradient descent ($R^2 = 0.491$).
-    - **v2 Enhancements:** Trimmed top 0.5% outliers ($>\\$675.13/\\text{sqft}$), dropped collinear `sqft_above`, added house age & renovation signals, and one-hot encoded 44 cities.
-    - **Performance Gain:** RMSE dropped by **25.6%** to **0.2721**, and $R^2$ jumped to **0.7217** (72.2% variance explained).
-    - **Speedup:** Pure vectorized NumPy operations accelerated execution by **1000×** (~0.07 ms per iteration).
+    **💰 How does Price Prediction work?**
+    - The model analyzes your property's features (size, location, condition, etc.) and estimates its market value in US Dollars($).
+    - It was trained on **4.5k+ real Seattle house sales** using 55 features including 44 city-level location signals.
+    - The predicted price is in **Seattle market rates**.
+
+    **📌 What affects the price the most?**
+    - `sqft_living` (Living Area) is the **#1 driver** — bigger house = higher price.
+    - `City / Location` — houses in Medina or Mercer Island are 3-5x more expensive than Auburn or Kent.
+    - `waterfront` — lake facing properties command a massive premium.
+    - `condition` — well maintained homes (4-5) sell significantly higher than poor condition (1-2).
     """)
 
 with tab2:
-    st.markdown(f"""
-    - **Binary Objective:** Formulated around Seattle's median price (`${median_price:,.0f}`) to create an exactly balanced 50/50 dataset.
-    - **High Accuracy:** Test Accuracy reached **85.32%**, significantly outperforming the dumb majority baseline (**49.34%**).
-    - **Regularization Behavior:** Demonstrated that under large sample sizes ($m=3,620$), $L_2$ penalty is stable, while in data-scarce regimes ($m=50 < n=55$), it prevents runaway weight explosion.
+    st.markdown(rf"""
+    **🏷️ What does Affordable vs Expensive mean?**
+    - Every house is classified based on Seattle's **median price (\${median_price:,.0f})**.
+    - **Expensive (y = 1):** Model predicts this house would sell **at or above** the median.
+    - **Affordable (y = 0):** Model predicts this house would sell **below** the median.
+
+    **📊 How to read the Confidence score?**
+    - `99%` confidence → Model is **very sure** about its classification.
+    - `55%` confidence → Model is **uncertain** — the house is right at the border between affordable and expensive.
+    - The closer the confidence is to `50%`, the more borderline the property is.
+
+    **🎯 Model Accuracy:**
+    - Tested on 906 unseen houses, the classifier correctly identified **85.32%** of them.
+    - It performs equally well on both classes, no bias towards affordable or expensive.
     """)
 
 with tab3:

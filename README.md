@@ -90,15 +90,76 @@ House_price_prediction/
 
 ---
 
-## 💻 How to Run
+## 📦 Dependencies & Environment
 
-### 1. Run the Jupyter Notebooks
+This project is built with Python 3.9+ (tested on Python 3.12.7). All required packages are listed in `requirements.txt`:
+
+| Library | Min Version | Role in the Project |
+|---|---|---|
+| **`numpy`** | `>=1.24.0` | Mathematical engine: vectorized matrix operations, gradient descent loops, sigmoid activation, log loss, and Hessian eigenvalue limit calculation |
+| **`pandas`** | `>=2.0.0` | Data processing: dataset ingestion, filtering missing/zero entries, 99.5th percentile outlier trimming, and one-hot encoding |
+| **`matplotlib`** | `>=3.7.0` | Plotting: cost vs. iterations learning curves, regression scatter plots, ablation study performance comparisons, and weight shrinkage visualizations |
+| **`scikit-learn`** | `>=1.2.0` | Benchmarking: train/test splitting (`random_state=42`) and ground-truth parity validation for from-scratch algorithms |
+| **`streamlit`** | `>=1.28.0` | Interactive web dashboard: live sliders and inputs for 55 features with real-time price estimation and affordability probability classification |
+
+---
+
+## 💻 Step-by-Step Setup & How to Run
+
+Follow these instructions to set up and run the project on your local machine:
+
+### 1. Clone the Repository
+```bash
+git clone https://github.com/ksh-50/House_price_prediction.git
+cd House_price_prediction
+```
+
+### 2. (Optional) Create & Activate a Virtual Environment
+- **On Windows (PowerShell):**
+  ```powershell
+  python -m venv venv
+  .\venv\Scripts\Activate.ps1
+  ```
+- **On macOS / Linux:**
+  ```bash
+  python3 -m venv venv
+  source venv/bin/activate
+  ```
+
+### 3. Install Required Dependencies
+Install all required libraries using `requirements.txt`:
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run the Jupyter Notebooks
+To inspect the step-by-step mathematical proofs, experiments, and visualizations:
 ```bash
 jupyter lab
+# or
+jupyter notebook
 ```
-Open and run `House_price_prediction_by_linear_reg(v1).ipynb`, `Advanced_linear_reg(v2).ipynb`, or `House_price_pred_by_logis_reg.ipynb`.
+From the Jupyter interface, you can explore:
+1. `House_price_prediction_by_linear_reg(v1).ipynb` — Baseline 8-feature Linear Regression from scratch with loop-based Gradient Descent.
+2. `Advanced_linear_reg(v2).ipynb` — Advanced regression with outlier removal, 55 engineered features, 1000× vectorized speedup, 3-stage ablation study, and the $\alpha < 2/\lambda_{\max}$ eigenvalue stability limit proof.
+3. `House_price_pred_by_logis_reg.ipynb` — Binary affordability classification from scratch using Sigmoid, Log Loss, and $L_2$ regularization experiments.
 
-### 2. Launch the Streamlit Interactive Web App
+### 5. Launch the Streamlit Interactive Web App
+To run the live interactive dashboard:
 ```bash
 streamlit run app.py
 ```
+*(If `streamlit` command is not on your PATH, run: `python -m streamlit run app.py`)*
+
+Once started, the app will automatically open in your web browser at:
+```
+http://localhost:8501
+```
+
+---
+
+## 📂 Dataset Attribution
+
+The models in this repository are trained and evaluated on the **King County / Seattle Housing Data** from Kaggle:
+- **Kaggle Dataset Link:** [House Data - King County, USA (Kaggle)](https://www.kaggle.com/datasets/shree1992/housedata/data)
+- **Description:** Historical residential property sales recorded in King County, Washington (Seattle, Bellevue, Redmond, Kirkland, etc.). Features include bedrooms, bathrooms, living area square footage, lot size, floors, waterfront presence, view rating, condition, year built, renovation year, and city location.

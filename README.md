@@ -1,6 +1,6 @@
 # 🏡 Seattle House Price Prediction & Classification (v1, v2 & v3)
 
-An end-to-end Machine Learning journey implementing multiple regression and classification algorithms completely from scratch using pure NumPy (cost functions, analytical gradients, vectorized gradient descent, eigenvalue stability analysis, and L2 regularization) and thoroughly benchmarked against Scikit-Learn.
+An end to end Machine Learning journey implementing multiple regression and classification algorithms completely from scratch using pure NumPy (cost functions, analytical gradients, vectorized gradient descent, eigenvalue stability analysis, and L2 regularization) and thoroughly benchmarked against Scikit Learn.
 
 ---
 
@@ -8,7 +8,7 @@ An end-to-end Machine Learning journey implementing multiple regression and clas
 
 | Stage | Paradigm | Core Objective | Key Features | Model Metric | vs. Baseline |
 |---|---|---|---|---|---|
-| **v1 Baseline** | Regression | Predict dollar price via `log(price)` | 8 core numeric features, loop-based GD | **Test RMSE: 0.3940**, R²: 0.4909 | Baseline RMSE: 0.5522 (+28.7% better) |
+| **v1 Baseline** | Regression | Predict dollar price via `log(price)` | 8 core numeric features, loop based GD | **Test RMSE: 0.3940**, R²: 0.4909 | Baseline RMSE: 0.5522 (+28.7% better) |
 | **v2 Advanced** | Regression | Feature engineering & 1000× speedup | 55 features (+age, +renovated, +44 cities) | **Test RMSE: 0.2721**, R²: **0.7217** | Baseline RMSE: 0.5158 (+47.2% better) |
 | **v3 Logistic** | Binary Classification | Classify: Expensive (1) vs. Affordable (0) | 55 features, Sigmoid, Log Loss, L2 Regularization | **Test Accuracy: 85.32%** | Dumb Baseline: 49.34% (**+36% gain**) |
 
